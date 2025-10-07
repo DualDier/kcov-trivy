@@ -10,14 +10,16 @@ jobs:
   test:
     name: Test with Coverage
     runs-on: ubuntu-latest
+    container:
+      image: kcov/kcov:latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install bats
         run: |
-          sudo apt-get update
-          sudo apt-get install -y bash bats kcov
+          apt-get update
+          apt-get install -y bats
 
       - name: Run tests with coverage
         run: |

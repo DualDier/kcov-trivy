@@ -6,7 +6,21 @@ setup() {
     # Get the directory of the test file
     DIR="$( cd "$( dirname "$BATS_TEST_FILENAME" )" >/dev/null 2>&1 && pwd )"
     # Source the script from parent directory
-    source "$DIR/../sample-script.sh"
+    SCRIPT_PATH="$DIR/../sample-script.sh"
+    
+    # Debug: verify file exists
+    if [[ ! -f "$SCRIPT_PATH" ]]; then
+        echo "ERROR: Script not found at $SCRIPT_PATH" >&2
+        exit 1
+    fi
+    
+    source "$SCRIPT_PATH"
+    
+    # Verify functions are loaded
+    if ! declare -f greet >/dev/null; then
+        echo "ERROR: Functions not loaded from $SCRIPT_PATH" >&2
+        exit 1
+    fi
 }
 
 @test "greet function with name" {

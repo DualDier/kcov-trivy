@@ -6,20 +6,25 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    container:
-      image: yzhs/kcov-alpine:latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      - name: Install bats
+      - name: Build kcov-alpine image
         run: |
-          apk add --no-cache bash bats git
+          git clone https://github.com/yzhs/kcov-alpine.git /tmp/kcov-alpine
+          docker build -t kcov-alpine:latest /tmp/kcov-alpine
       
-      - name: Run BATS tests with kcov
+      - name: Run BATS tests with kcov in container
         run: |
-          mkdir -p coverage
-          kcov --exclude-pattern=/usr,/tmp coverage/ bats tests/
+          docker run --rm -v $(pwd):/workspace -w /workspace kcov-alpine:latest sh -c "
+            apk add --no-cache bash bats git
+            mkdir -p coverage
+            kcov --exclude-pattern=/usr,/tmp coverage/ bats tests/
+          "
+      
+      - name: Fix coverage permissions
+        run: sudo chown -R $USER:$USER coverage/
       
       - name: Upload coverage report
         uses: actions/upload-artifact@v4

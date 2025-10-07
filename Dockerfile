@@ -1,10 +1,16 @@
 FROM alpine:3.20
 
-RUN apk add --no-cache bash bats curl git
+# Install bash
+RUN apk add --no-cache bash
 
-COPY . /app
+# Copy application files
+COPY sample-script.sh /app/sample-script.sh
+
+# Set working directory
 WORKDIR /app
 
-# Default command to run tests
-CMD ["bats", "tests"]
+# Make script executable
+RUN chmod +x sample-script.sh
 
+# Default command
+CMD ["/bin/bash", "/app/sample-script.sh"]

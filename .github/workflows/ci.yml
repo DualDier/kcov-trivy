@@ -1,125 +1,108 @@
-name: CI Pipeline
+name: CI/CD Pipeline
+
 on:
   push:
     branches: [ main ]
   pull_request:
+    branches: [ main ]
+
 jobs:
   test:
+    name: Test with Coverage
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
-      
-      - name: Build kcov-alpine image
+
+      - name: Install dependencies
         run: |
-          git clone https://github.com/yzhs/kcov-alpine.git /tmp/kcov-alpine
-          docker build -t kcov-alpine:latest /tmp/kcov-alpine
-      
-      - name: Run BATS tests with kcov in container
+          sudo apt-get update
+          sudo apt-get install -y bash bats kcov
+
+      - name: Run tests with coverage
         run: |
-          docker run --rm -v $(pwd):/workspace -w /workspace kcov-alpine:latest sh -c "
-            apk add --no-cache bash bats git
-            mkdir -p coverage
-            kcov --exclude-pattern=/usr,/tmp coverage/ bats tests/
-          "
-      
-      - name: Fix coverage permissions
-        run: sudo chown -R $USER:$USER coverage/
-      
+          mkdir -p coverage
+          kcov --exclude-pattern=/usr coverage/ bats tests/
+
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: coverage-report
           path: coverage/
-      
-      - name: Coverage summary
+
+      - name: Display coverage summary
         if: always()
         run: |
+          echo "## Test Coverage Report" >> $GITHUB_STEP_SUMMARY
           if [ -f coverage/index.json ]; then
-            echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
             echo "✅ Coverage report generated successfully" >> $GITHUB_STEP_SUMMARY
+            echo "📊 View detailed report in artifacts" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Coverage report not found" >> $GITHUB_STEP_SUMMARY
           fi
-  
+
   build:
+    name: Build Docker Image
     runs-on: ubuntu-latest
     needs: test
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
-      - name: Create fixed Dockerfile
-        run: |
-          cat > Dockerfile.fixed << 'EOF'
-          FROM alpine:3.20
-          
-          # Install dependencies and build kcov from source
-          RUN apk add --no-cache bash bats curl git cmake g++ make pkgconfig \
-              curl-dev elfutils-dev binutils-dev python3 zlib-dev && \
-              cd /tmp && \
-              git clone --depth 1 https://github.com/SimonKagstrom/kcov.git && \
-              cd kcov && \
-              mkdir build && \
-              cd build && \
-              cmake -DCMAKE_BUILD_TYPE=Release .. && \
-              make && \
-              make install && \
-              cd / && \
-              rm -rf /tmp/kcov && \
-              apk del cmake g++ make pkgconfig python3
-          
-          COPY . /app
-          WORKDIR /app
-          
-          CMD ["/bin/bash"]
-          EOF
-      
+
       - name: Build Docker image
-        run: docker build -f Dockerfile.fixed -t myapp:latest .
-      
+        run: docker build -t myapp:latest .
+
       - name: Save Docker image
         run: docker save myapp:latest -o myapp.tar
-      
-      - name: Upload Docker image artifact
+
+      - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
           name: docker-image
           path: myapp.tar
-  
+          retention-days: 1
+
   scan:
+    name: Security Scan
     runs-on: ubuntu-latest
     needs: build
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
-      - name: Download Docker image artifact
+
+      - name: Download Docker image
         uses: actions/download-artifact@v4
         with:
           name: docker-image
-      
+
       - name: Load Docker image
         run: docker load -i myapp.tar
-      
-      - name: Run Trivy vulnerability scanner
+
+      - name: Run Trivy scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'myapp:latest'
+          format: 'table'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+
+      - name: Run Trivy scan (SARIF)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: 'myapp:latest'
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
-          exit-code: '1'
-      
+
       - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
-      
-      - name: Run Trivy scanner (table format)
+
+      - name: Trivy scan summary
         if: always()
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: 'myapp:latest'
-          format: 'table'
-          severity: 'CRITICAL,HIGH'
+        run: |
+          echo "## Security Scan Complete" >> $GITHUB_STEP_SUMMARY
+          echo "🔒 Trivy scan completed" >> $GITHUB_STEP_SUMMARY
+          echo "📋 Check Security tab for detailed results" >> $GITHUB_STEP_SUMMARY

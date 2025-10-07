@@ -7,26 +7,14 @@ jobs:
   test:
     runs-on: ubuntu-latest
     container:
-      image: alpine:3.20
+      image: yzhs/kcov-alpine:latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      - name: Install dependencies and build kcov
+      - name: Install bats
         run: |
-          apk add --no-cache bash bats git cmake g++ make pkgconfig \
-            curl-dev elfutils-dev binutils-dev python3 zlib-dev
-          
-          # Build kcov from source
-          cd /tmp
-          git clone --depth 1 https://github.com/SimonKagstrom/kcov.git
-          cd kcov
-          mkdir build
-          cd build
-          cmake -DCMAKE_BUILD_TYPE=Release ..
-          make
-          make install
-          cd /
+          apk add --no-cache bash bats git
       
       - name: Run BATS tests with kcov
         run: |
@@ -55,8 +43,34 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
+      - name: Create fixed Dockerfile
+        run: |
+          cat > Dockerfile.fixed << 'EOF'
+          FROM alpine:3.20
+          
+          # Install dependencies and build kcov from source
+          RUN apk add --no-cache bash bats curl git cmake g++ make pkgconfig \
+              curl-dev elfutils-dev binutils-dev python3 zlib-dev && \
+              cd /tmp && \
+              git clone --depth 1 https://github.com/SimonKagstrom/kcov.git && \
+              cd kcov && \
+              mkdir build && \
+              cd build && \
+              cmake -DCMAKE_BUILD_TYPE=Release .. && \
+              make && \
+              make install && \
+              cd / && \
+              rm -rf /tmp/kcov && \
+              apk del cmake g++ make pkgconfig python3
+          
+          COPY . /app
+          WORKDIR /app
+          
+          CMD ["/bin/bash"]
+          EOF
+      
       - name: Build Docker image
-        run: docker build -t myapp:latest .
+        run: docker build -f Dockerfile.fixed -t myapp:latest .
       
       - name: Save Docker image
         run: docker save myapp:latest -o myapp.tar

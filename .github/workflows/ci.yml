@@ -1,0 +1,61 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container:
+      image: alpine:3.20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          apk add --no-cache bash bats kcov git
+
+      - name: Run BATS tests
+        run: |
+          bats tests
+
+      - name: Generate code coverage with kcov
+        run: |
+          mkdir -p coverage
+          for f in $(find . -name '*.sh'); do
+            kcov --include-path=$(pwd) coverage/ bash $f || true
+          done
+          echo "Coverage report generated in ./coverage"
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t myapp:latest .
+
+  scan:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Trivy
+        run: |
+          sudo apt-get update && sudo apt-get install -y wget
+          wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.54.1_Linux-64bit.deb
+          sudo dpkg -i trivy_0.54.1_Linux-64bit.deb
+
+      - name: Build Docker image
+        run: docker build -t myapp:latest .
+
+      - name: Scan image with Trivy
+        run: trivy image --exit-code 1 --severity HIGH,CRITICAL myapp:latest
+

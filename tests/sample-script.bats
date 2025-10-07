@@ -3,8 +3,10 @@
 
 # Load the script to test
 setup() {
-    # Source the script
-    source "${BATS_TEST_DIRNAME}/../sample-script.sh"
+    # Get the directory of the test file
+    DIR="$( cd "$( dirname "$BATS_TEST_FILENAME" )" >/dev/null 2>&1 && pwd )"
+    # Source the script from parent directory
+    source "$DIR/../sample-script.sh"
 }
 
 @test "greet function with name" {

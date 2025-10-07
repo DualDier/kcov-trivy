@@ -1,6 +1,6 @@
 FROM alpine:3.20
 
-RUN apk add --no-cache bash bats kcov curl git
+RUN apk add --no-cache bash bats curl git
 
 COPY . /app
 WORKDIR /app

@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout code
+      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -23,29 +23,20 @@ jobs:
       - name: Make .bats tests executable
         run: chmod +x tests/*.bats
 
-      # 4️⃣ Run KCOV on each .bats test
+      # 4️⃣ Run KCOV on each .bats test individually
       - name: Run Bats tests with KCOV
         run: |
-          mkdir -p coverage/temp coverage/merged
+          mkdir -p coverage/merged
           for test_file in tests/*.bats; do
             echo "Running KCOV on $test_file"
             docker run --rm \
               -v "${{ github.workspace }}:/workspace" \
               -w /workspace \
               kcov-test-image \
-              kcov --include-path=/workspace /workspace/coverage/temp "$test_file"
+              kcov --include-path=/workspace /workspace/coverage/merged "$test_file"
           done
 
-      # 5️⃣ Merge all KCOV reports into a single HTML report
-      - name: Merge KCOV reports
-        run: |
-          docker run --rm \
-            -v "${{ github.workspace }}:/workspace" \
-            -w /workspace \
-            kcov-test-image \
-            kcov --merge /workspace/coverage/merged /workspace/coverage/temp/*
-
-      # 6️⃣ Upload merged coverage report as artifact
+      # 5️⃣ Upload merged coverage report as artifact
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:

@@ -11,34 +11,41 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout the repo
+      # 1️⃣ Checkout repository
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2️⃣ Build your KCOV image using Dockerfile.kcovbase
+      # 2️⃣ Build KCOV Docker image using Dockerfile.kcovbase
       - name: Build KCOV Docker image
         run: |
           docker build -f Dockerfile.kcovbase -t kcov-test-image .
 
-      # 3️⃣ Run .bats tests with KCOV inside the container
+      # 3️⃣ Make bats tests executable
+      - name: Make .bats tests executable
+        run: chmod +x tests/*.bats
+
+      # 4️⃣ Run .bats tests with KCOV and generate merged HTML coverage
       - name: Run Bats tests with KCOV
         run: |
           mkdir -p coverage
           docker run --rm \
-            -v ${{ github.workspace }}:/workspace \
+            -v "${{ github.workspace }}:/workspace" \
             -w /workspace \
             kcov-test-image \
-            /bin/sh -c "
-              mkdir -p /workspace/coverage &&
-              for f in tests/*.bats; do
-                # Run each bats test with kcov coverage
-                kcov --include-path=/workspace /workspace/coverage \$f
-              done
-            "
+            kcov --include-path=/workspace /workspace/coverage/temp tests/*.bats
 
-      # 4️⃣ Upload coverage directory as artifact
+      # 5️⃣ Merge coverage into a single report
+      - name: Merge coverage reports
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/workspace" \
+            -w /workspace \
+            kcov-test-image \
+            kcov --merge /workspace/coverage/merged /workspace/coverage/temp/*
+
+      # 6️⃣ Upload coverage directory as artifact
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: coverage/
+          path: coverage/merged

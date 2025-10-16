@@ -1,0 +1,52 @@
+# Build from local filesystem
+FROM scratch
+
+# Build from open source image: https://hub.docker.com/_/alpine
+WORKDIR /workdir
+
+# Extract distribution to the container's filesystem
+ADD ./devops/alpine-minirootfs-3.22.1-x86_64.tar.gz /
+
+# Enable edge/testing for latest packages
+RUN echo "http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories && \
+    apk update && \
+    apk add --no-cache \
+        alpine-sdk \
+        cmake \
+        ninja \
+        curl-dev \
+        curl \
+        python3 \
+        bash \
+        g++ \
+        gcc \
+        musl-dev \
+        zlib-dev \
+        xz-dev \
+        libtool \
+        autoconf \
+        automake \
+        bison \
+        flex \
+        elfutils-dev \
+        argp-standalone
+
+ENV VERSION=43 SRC_DIR=/src
+
+# Fetch kcov
+WORKDIR $SRC_DIR
+RUN curl -L https://github.com/SimonKagstrom/kcov/archive/refs/tags/v$VERSION.tar.gz \
+    | tar xzC $SRC_DIR && \
+    mkdir kcov-$VERSION/build
+
+# Build kcov
+WORKDIR $SRC_DIR/kcov-$VERSION/build
+RUN CXXFLAGS="-D__ptrace_request=int" \
+    cmake -G Ninja .. \
+    -DCURL_INCLUDE_DIR=/usr/include \
+    -DCURL_LIBRARY=/usr/lib/libcurl.so.4 \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 && \
+    ninja && \
+    ninja install
+
+ENTRYPOINT ["/usr/local/bin/kcov"]

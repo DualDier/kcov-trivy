@@ -1,0 +1,63 @@
+# Build from local filesystem
+FROM scratch
+
+# Build from open source image: https://hub.docker.com/_/alpine
+WORKDIR /workdir
+
+# Extract distribution to the container's filesystem
+ADD ./devops/alpine-minirootfs-3.22.1-x86_64.tar.gz /
+
+COPY --from=kcov/kcov:latest /usr/local/bin/kcov* /usr/local/bin/
+
+LABEL project="TEST"
+
+# Keep tool installations on a single layer for container build-time and performance
+# https://github.com/dnaprawa/dockerfile-best-practices?tab=readme-ov-file#limit-image-layers-amount
+
+RUN apk update -q && apk add -q \
+
+  # Required CLI utilities
+  bats \
+  curl \
+  git \
+  jq \
+  libxslt-dev \
+  make \
+  nodejs \
+  npm \
+  shellcheck \
+  xmlstarlet \
+  # Needed for zipping appian/**/plugins for deployment
+  findutils \
+  unzip \
+  zip \
+  # For adding certificates to container trust store
+  ca-certificates \
+  openjdk11-jre-headless \
+  maven \
+  # Install necessary fonts to fix Clover RuntimeException
+  fontconfig \
+  ttf-dejavu \
+  # Dependencies for Kcov
+  libcurl \
+  libdw \
+  zlib \
+  libgcc \
+  libstdc++ \
+  binutils-dev
+
+# Set default compiler level for every mvn invocation
+ENV MAVEN_OPTS="-Dmaven.compiler.source=11 -Dmaven.compiler.target=11"
+
+# Update packages to latest versions, clean cache
+RUN apk upgrade -q && rm -rf /var/cache/apk/*
+
+# Set the virtual environment in PATH
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Healthcheck to ensure container is responsive
+HEALTHCHECK --interval=1m --timeout=15s \
+  CMD curl -f http://localhost/ || exit 1
+
+# Copy only the necessary files to the container's working directory
+COPY ["appian/applications", "devops/", "/workdir/"]

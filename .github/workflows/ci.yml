@@ -17,24 +17,26 @@ jobs:
 
       # 2️⃣ Build KCOV Docker image using Dockerfile.kcovbase
       - name: Build KCOV Docker image
-        run: |
-          docker build -f Dockerfile.kcovbase -t kcov-test-image .
+        run: docker build -f Dockerfile.kcovbase -t kcov-test-image .
 
-      # 3️⃣ Make bats tests executable
+      # 3️⃣ Make .bats tests executable
       - name: Make .bats tests executable
         run: chmod +x tests/*.bats
 
-      # 4️⃣ Run .bats tests with KCOV and generate merged HTML coverage
+      # 4️⃣ Run .bats tests with KCOV and generate merged coverage
       - name: Run Bats tests with KCOV
         run: |
-          mkdir -p coverage
+          # Create directories for KCOV output
+          mkdir -p coverage/temp coverage/merged
+          
+          # Run KCOV on all .bats tests individually
           docker run --rm \
             -v "${{ github.workspace }}:/workspace" \
             -w /workspace \
             kcov-test-image \
             kcov --include-path=/workspace /workspace/coverage/temp tests/*.bats
 
-      # 5️⃣ Merge coverage into a single report
+      # 5️⃣ Merge coverage reports into a single HTML report
       - name: Merge coverage reports
         run: |
           docker run --rm \
@@ -43,7 +45,7 @@ jobs:
             kcov-test-image \
             kcov --merge /workspace/coverage/merged /workspace/coverage/temp/*
 
-      # 6️⃣ Upload coverage directory as artifact
+      # 6️⃣ Upload merged coverage report as artifact
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:

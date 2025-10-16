@@ -27,7 +27,7 @@ jobs:
               -v "${{ github.workspace }}:/workspace" \
               -w /workspace \
               kcov-test-image \
-              bash -c "kcov /workspace/coverage/merged --include-path=/workspace bash '$test_file'"
+              kcov /workspace/coverage/merged --include-path=/workspace -- bash bats "$test_file"
           done
       # 5️⃣ Upload merged coverage report as artifact
       - name: Upload coverage report

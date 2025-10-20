@@ -28,10 +28,11 @@ jobs:
             chmod 777 coverage/$test_name
             echo "Running KCOV on $test_file"
             docker run --rm \
+              --entrypoint "" \
               -v "${{ github.workspace }}:/workspace" \
               -w /workspace \
               kcov-test-image \
-              kcov /workspace/coverage/$test_name --include-path=/workspace -- /bin/bash "$test_file"
+              /usr/local/bin/kcov /workspace/coverage/$test_name --include-path=/workspace -- /bin/bash "$test_file"
           done
       # 5️⃣ Upload merged coverage report as artifact
       - name: Upload coverage report

@@ -20,14 +20,16 @@ jobs:
       # 4️⃣ Run KCOV on each .bats test individually
       - name: Run Bats tests with KCOV
         run: |
-          mkdir -p coverage/merged
+          mkdir -p coverage
+          chmod 777 coverage
           for test_file in tests/*.bats; do
+            test_name=$(basename "$test_file" .bats)
             echo "Running KCOV on $test_file"
             docker run --rm \
               -v "${{ github.workspace }}:/workspace" \
               -w /workspace \
               kcov-test-image \
-              kcov /workspace/coverage/merged --include-path=/workspace -- /bin/bash "$test_file"
+              kcov /workspace/coverage/$test_name --include-path=/workspace -- /bin/bash "$test_file"
           done
       # 5️⃣ Upload merged coverage report as artifact
       - name: Upload coverage report

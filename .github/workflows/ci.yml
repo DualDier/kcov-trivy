@@ -24,6 +24,8 @@ jobs:
           chmod 777 coverage
           for test_file in tests/*.bats; do
             test_name=$(basename "$test_file" .bats)
+            mkdir -p coverage/$test_name
+            chmod 777 coverage/$test_name
             echo "Running KCOV on $test_file"
             docker run --rm \
               -v "${{ github.workspace }}:/workspace" \

@@ -28,6 +28,7 @@ jobs:
             chmod 777 coverage/$test_name
             echo "Running KCOV on $test_file"
             docker run --rm \
+              --privileged \
               --entrypoint "" \
               -v "${{ github.workspace }}:/workspace" \
               -w /workspace \
